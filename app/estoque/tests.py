@@ -268,3 +268,80 @@ class RelatorioMensalTest(BaseTest):
 
     def test_menu_tem_link_para_o_relatorio(self):
         self.assertContains(self.client.get(reverse('menu')), 'Relatório mensal')
+
+
+class ReposicaoTest(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+
+    def test_telas_de_reposicao_exigem_login(self):
+        self.client.logout()
+        for nome in ('repor', 'nova_variacao'):
+            self.assertEqual(self.client.get(reverse(nome)).status_code, 302, nome)
+
+    def test_reposicao_soma_ao_saldo_e_tira_do_alerta(self):
+        self.assertTrue(self.m_preta.estoque_baixo)
+        resposta = self.client.post(reverse('repor'), {'variacao': self.m_preta.pk, 'quantidade': 4}, follow=True)
+        self.assertContains(resposta, 'Estoque atualizado. Vestido floral M Preta: 5 unidades')
+        self.m_preta.refresh_from_db()
+        self.assertEqual(self.m_preta.quantidade_estoque, 5)
+        self.assertFalse(self.m_preta.estoque_baixo)
+
+    def test_reposicao_recusa_quantidade_invalida(self):
+        for q in ('0', '-3', 'abc'):
+            resposta = self.client.post(reverse('repor'), {'variacao': self.m_preta.pk, 'quantidade': q})
+            self.assertEqual(resposta.status_code, 200)
+        self.m_preta.refresh_from_db()
+        self.assertEqual(self.m_preta.quantidade_estoque, 1)
+
+    def test_servico_de_reposicao_recusa_produto_inativo(self):
+        from .services import repor_estoque
+        self.produto.ativo = False
+        self.produto.save()
+        with self.assertRaises(RegraDeNegocioError):
+            repor_estoque(variacao_id=self.g_azul.pk, quantidade=2)
+
+    def test_nova_variacao_para_produto_existente(self):
+        resposta = self.client.post(reverse('nova_variacao'), {
+            'produto': self.produto.pk, 'tamanho': 'p', 'cor': 'verde', 'quantidade_estoque': 3, 'estoque_minimo': 1}, follow=True)
+        self.assertContains(resposta, 'Variação cadastrada: Vestido floral P Verde.')
+        v = Variacao.objects.get(produto=self.produto, tamanho='P')
+        self.assertEqual((v.cor, v.quantidade_estoque), ('Verde', 3))
+
+    def test_nova_variacao_duplicada_e_recusada_com_orientacao(self):
+        resposta = self.client.post(reverse('nova_variacao'), {
+            'produto': self.produto.pk, 'tamanho': 'm', 'cor': 'PRETA', 'quantidade_estoque': 3, 'estoque_minimo': 1})
+        self.assertContains(resposta, 'já existe para o produto. Use')
+        self.assertEqual(Variacao.objects.filter(produto=self.produto).count(), 2)
+
+    def test_menu_tem_links_de_estoque(self):
+        resposta = self.client.get(reverse('menu'))
+        self.assertContains(resposta, 'Repor estoque')
+        self.assertContains(resposta, 'Nova variação')
+
+
+class SaudeTest(TestCase):
+    def test_saude_e_publica_e_informa_banco_ok(self):
+        resposta = self.client.get(reverse('saude'))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta.json(), {'status': 'ok', 'banco': 'ok'})
+
+    def test_saude_devolve_503_quando_o_banco_falha(self):
+        from unittest import mock
+        with mock.patch('estoque.views.connection.cursor', side_effect=Exception('banco fora')):
+            resposta = self.client.get(reverse('saude'))
+        self.assertEqual(resposta.status_code, 503)
+        self.assertEqual(resposta.json()['status'], 'erro')
+        self.assertNotIn('banco fora', resposta.content.decode())  # sem detalhes técnicos
+
+    def test_saude_nao_expoe_dados_do_negocio(self):
+        self.assertEqual(set(self.client.get(reverse('saude')).json()), {'status', 'banco'})
+
+
+class ConfiguracaoDeProducaoTest(TestCase):
+    def test_database_url_e_interpretada(self):
+        from config.settings import _banco_por_url
+        cfg = _banco_por_url('postgres://usu%40:s%23nha@banco.exemplo.com:5432/sepala')
+        self.assertEqual((cfg['USER'], cfg['PASSWORD'], cfg['HOST'], cfg['PORT'], cfg['NAME']),
+                         ('usu@', 's#nha', 'banco.exemplo.com', '5432', 'sepala'))

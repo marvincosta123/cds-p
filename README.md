@@ -34,6 +34,7 @@ nota fiscal, loja virtual e aplicativo nativo.
 
 ## Estrutura
 - `docs/prototipo/` capturas do protótipo (dados fictícios)
+- `docs/DEPLOY.md` implantação e monitoramento
 - `app/` aplicação Django (`config/` configuração, `estoque/` modelos, serviços, views e testes)
 
 ## Protótipo
@@ -69,5 +70,6 @@ obrigatório, bloqueio por tentativas, relatório mensal, escape de
 scripts e consultas seguras.
 
 ## Status
-Implementados: RF01 a RF07 e bloqueio de login por 15 minutos após 5
-falhas seguidas (RNF01). Pendentes: PWA e implantação em hospedagem.
+Implementados: RF01 a RF07, reposição de estoque, bloqueio de login por
+15 minutos após 5 falhas seguidas (RNF01), configuração de produção e rota
+`/saude/`. Pendentes: PWA e a publicação em hospedagem (ver `docs/DEPLOY.md`).

@@ -4,7 +4,7 @@ services:
     name: sepala-estoque
     runtime: python
     plan: free            # confirmar limites do plano gratuito na contratação
-    buildCommand: pip install -r app/requirements.txt && python app/manage.py collectstatic --noinput && python app/manage.py migrate
+    buildCommand: pip install -r app/requirements.txt && python app/manage.py collectstatic --noinput && python app/manage.py migrate && (python app/manage.py createsuperuser --noinput || true)
     startCommand: gunicorn --chdir app config.wsgi
     healthCheckPath: /saude/
     envVars:
@@ -14,6 +14,12 @@ services:
         value: "0"
       - key: DJANGO_FORCE_HTTPS
         value: "1"
+      - key: DJANGO_SUPERUSER_USERNAME
+        sync: false        # informe no painel do Render ao sincronizar
+      - key: DJANGO_SUPERUSER_PASSWORD
+        sync: false        # senha só no painel, nunca no repositório
+      - key: DJANGO_SUPERUSER_EMAIL
+        value: nao-usado@exemplo.com
       - key: DATABASE_URL
         fromDatabase:
           name: sepala-db

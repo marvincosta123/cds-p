@@ -13,8 +13,10 @@
 ## Passo a passo (Render, modelo `render.yaml`)
 1. Em render.com, crie uma conta e escolha **New > Blueprint**, apontando para este repositório.
 2. Confirme o serviço web `sepala-estoque` e o banco `sepala-db`; confira os limites do plano gratuito.
-3. Após o primeiro deploy, abra o terminal (Shell) do serviço e crie o usuário de acesso:
-   `python app/manage.py createsuperuser`
+3. Crie o usuário de acesso sem terminal: defina `DJANGO_SUPERUSER_USERNAME` e `DJANGO_SUPERUSER_PASSWORD`
+   (senha só no painel, em Environment) e faça um novo deploy. O build executa
+   `createsuperuser --noinput`, que é ignorado nos deploys seguintes se o usuário já existir.
+   (O Shell do Render pode não estar disponível no plano gratuito.)
 4. Acesse `https://<seu-servico>.onrender.com/saude/`: deve responder `{"status": "ok", "banco": "ok"}`.
 
 ## Monitoramento

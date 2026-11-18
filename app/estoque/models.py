@@ -84,3 +84,14 @@ class ItemVenda(models.Model):
             models.UniqueConstraint(fields=['venda', 'variacao'], name='item_unico_por_venda'),
             models.CheckConstraint(condition=Q(quantidade__gte=1), name='item_quantidade_positiva'),
         ]
+
+
+class TentativaLogin(models.Model):
+    """Contador de falhas de login por nome de usuário (RNF01).
+
+    Guarda o texto digitado, exista ou não o usuário, para o bloqueio não
+    revelar quais contas existem.
+    """
+    usuario = models.CharField(max_length=150, unique=True)
+    falhas = models.PositiveIntegerField(default=0)
+    bloqueado_ate = models.DateTimeField(null=True, blank=True)

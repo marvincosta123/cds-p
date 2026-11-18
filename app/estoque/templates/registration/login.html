@@ -2,5 +2,5 @@
 {% block content %}<form method="post">{% csrf_token %}
 <label for="id_username">Usuário</label>{{ form.username }}
 <label for="id_password">Senha</label>{{ form.password }}
-{% if form.errors %}<div class="msg err" role="alert">Usuário ou senha inválidos.</div>{% endif %}
+{% if form.errors %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>{% for e in form.non_field_errors %}{{ e }}{% endfor %}</span></div>{% endif %}
 <button class="btn primary" style="justify-content:center;margin-top:16px" type="submit">Entrar</button></form>{% endblock %}

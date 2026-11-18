@@ -1,11 +1,13 @@
+from datetime import timedelta
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
 from django.test import TestCase
+from django.utils import timezone
 from django.urls import reverse
 
-from .models import ItemVenda, Produto, Variacao, Venda
+from .models import ItemVenda, Produto, TentativaLogin, Variacao, Venda
 from .services import RegraDeNegocioError, registrar_venda
 
 
@@ -195,3 +197,39 @@ class TelasTest(BaseTest):
         resposta = self.client.post(reverse('nova_venda'), dados_venda((self.g_azul.pk, 1), pagamento='pendente'))
         self.assertContains(resposta, 'Informe o nome do cliente para venda pendente.')
         self.assertEqual(Venda.objects.count(), 0)
+
+
+class BloqueioDeLoginTest(BaseTest):
+    def entrar(self, usuario, senha):
+        return self.client.post(reverse('login'), {'username': usuario, 'password': senha})
+
+    def test_bloqueia_apos_cinco_falhas_mesmo_com_senha_correta(self):
+        for _ in range(5):
+            self.assertContains(self.entrar('jaqueline', 'errada'), 'Usuário ou senha inválidos.')
+        resposta = self.entrar('jaqueline', 'senha-de-teste-123')
+        self.assertContains(resposta, 'Muitas tentativas')
+        self.assertEqual(self.client.get(reverse('menu')).status_code, 302)  # continua sem acesso
+
+    def test_quatro_falhas_nao_bloqueiam_e_o_login_correto_zera_o_contador(self):
+        for _ in range(4):
+            self.entrar('jaqueline', 'errada')
+        self.assertRedirects(self.entrar('jaqueline', 'senha-de-teste-123'), reverse('menu'))
+        self.assertFalse(TentativaLogin.objects.filter(usuario='jaqueline').exists())
+
+    def test_bloqueio_expira_depois_do_prazo(self):
+        for _ in range(5):
+            self.entrar('jaqueline', 'errada')
+        TentativaLogin.objects.filter(usuario='jaqueline').update(bloqueado_ate=timezone.now() - timedelta(minutes=1))
+        self.assertRedirects(self.entrar('jaqueline', 'senha-de-teste-123'), reverse('menu'))
+
+    def test_usuario_inexistente_tambem_e_bloqueado_sem_revelar_a_conta(self):
+        for _ in range(5):
+            self.assertContains(self.entrar('fantasma', 'x'), 'Usuário ou senha inválidos.')
+        self.assertContains(self.entrar('fantasma', 'x'), 'Muitas tentativas')
+
+    def test_bloqueio_de_um_usuario_nao_afeta_outro(self):
+        get_user_model().objects.create_user('outra', password='outra-senha-123')
+        for _ in range(5):
+            self.entrar('jaqueline', 'errada')
+        self.assertRedirects(self.entrar('outra', 'outra-senha-123'), reverse('menu'))
+

@@ -319,3 +319,29 @@ class ReposicaoTest(BaseTest):
         resposta = self.client.get(reverse('menu'))
         self.assertContains(resposta, 'Repor estoque')
         self.assertContains(resposta, 'Nova variação')
+
+
+class SaudeTest(TestCase):
+    def test_saude_e_publica_e_informa_banco_ok(self):
+        resposta = self.client.get(reverse('saude'))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertEqual(resposta.json(), {'status': 'ok', 'banco': 'ok'})
+
+    def test_saude_devolve_503_quando_o_banco_falha(self):
+        from unittest import mock
+        with mock.patch('estoque.views.connection.cursor', side_effect=Exception('banco fora')):
+            resposta = self.client.get(reverse('saude'))
+        self.assertEqual(resposta.status_code, 503)
+        self.assertEqual(resposta.json()['status'], 'erro')
+        self.assertNotIn('banco fora', resposta.content.decode())  # sem detalhes técnicos
+
+    def test_saude_nao_expoe_dados_do_negocio(self):
+        self.assertEqual(set(self.client.get(reverse('saude')).json()), {'status', 'banco'})
+
+
+class ConfiguracaoDeProducaoTest(TestCase):
+    def test_database_url_e_interpretada(self):
+        from config.settings import _banco_por_url
+        cfg = _banco_por_url('postgres://usu%40:s%23nha@banco.exemplo.com:5432/sepala')
+        self.assertEqual((cfg['USER'], cfg['PASSWORD'], cfg['HOST'], cfg['PORT'], cfg['NAME']),
+                         ('usu@', 's#nha', 'banco.exemplo.com', '5432', 'sepala'))

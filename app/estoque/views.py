@@ -5,6 +5,8 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import F, Q, Sum
+from django.db import connection
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
@@ -152,3 +154,14 @@ def nova_variacao(request):
             messages.success(request, f'Variação cadastrada: {variacao.produto.nome} {variacao.tamanho} {variacao.cor}.')
             return redirect('nova_variacao')
     return render(request, 'estoque/nova_variacao.html', {'form': form})
+
+
+def saude(request):
+    """Verificação de disponibilidade para monitoramento (pública, sem dados sensíveis)."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1')
+            cursor.fetchone()
+    except Exception:
+        return JsonResponse({'status': 'erro', 'banco': 'indisponivel'}, status=503)
+    return JsonResponse({'status': 'ok', 'banco': 'ok'})

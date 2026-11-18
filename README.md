@@ -22,7 +22,7 @@ Obrigatório:
 
 Desejável:
 - RF06 Alerta de estoque baixo
-- RF07 Relatório mensal
+- RF07 Relatório mensal (total vendido, peças mais vendidas e vendas pendentes)
 
 Fora do escopo: integração com WhatsApp/Instagram, pagamentos online,
 nota fiscal, loja virtual e aplicativo nativo.
@@ -34,7 +34,7 @@ nota fiscal, loja virtual e aplicativo nativo.
 
 ## Estrutura
 - `docs/prototipo/` capturas do protótipo (dados fictícios)
-- `app/` código da aplicação (em desenvolvimento)
+- `app/` aplicação Django (`config/` configuração, `estoque/` modelos, serviços, views e testes)
 
 ## Protótipo
 Telas fictícias do fluxo central: menu inicial, nova venda e alertas.
@@ -47,5 +47,27 @@ Telas fictícias do fluxo central: menu inicial, nova venda e alertas.
 Nenhuma credencial é versionada; configurações ficam em variáveis de
 ambiente. O protótipo usa apenas dados fictícios.
 
+## Como executar (desenvolvimento)
+```bash
+cd app
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py createsuperuser   # crie o usuário de acesso
+DJANGO_DEBUG=1 python manage.py runserver
+```
+Variáveis de ambiente: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`,
+`DJANGO_ALLOWED_HOSTS` e, para PostgreSQL, `DB_NAME`, `DB_USER`,
+`DB_PASSWORD`, `DB_HOST`, `DB_PORT`. Sem `DB_NAME`, usa SQLite local.
+
+## Testes
+```bash
+cd app && python manage.py test estoque
+```
+Cobrem baixa de estoque, recusa sem saldo, atomicidade, login
+obrigatório, bloqueio por tentativas, relatório mensal, escape de
+scripts e consultas seguras.
+
 ## Status
-Em desenvolvimento (planejamento e protótipo concluídos).
+Implementados: RF01 a RF07 e bloqueio de login por 15 minutos após 5
+falhas seguidas (RNF01). Pendentes: PWA e implantação em hospedagem.

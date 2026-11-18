@@ -1,0 +1,7 @@
+{% extends "estoque/base.html" %}{% block subtitle %}Consultar peça{% endblock %}
+{% block content %}<a class="link" href="{% url 'menu' %}">← Voltar ao menu</a>
+<form method="get"><label for="q">Nome ou categoria do produto</label><input class="field" id="q" name="q" value="{{ termo }}" maxlength="120">
+<button class="btn primary" style="justify-content:center;margin-top:12px" type="submit">Buscar</button></form>
+{% for v in variacoes %}<div class="card"><div class="name">{{ v.produto.nome }}</div><div class="meta">{{ v.tamanho }} · {{ v.cor }} ·
+{% if v.quantidade_estoque == 0 %}Indisponível{% else %}Saldo: {{ v.quantidade_estoque }}{% endif %}</div></div>
+{% empty %}{% if termo %}<p>Nenhuma peça encontrada.</p>{% endif %}{% endfor %}{% endblock %}

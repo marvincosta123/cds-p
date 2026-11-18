@@ -1,0 +1,8 @@
+{% extends "estoque/base.html" %}{% block subtitle %}Resultado e alertas{% endblock %}
+{% block content %}<h1>Estoque baixo ({{ alertas|length }} peça{{ alertas|length|pluralize }})</h1>
+{% for v in alertas %}<div class="card {% if v.quantidade_estoque == 0 %}urg{% else %}att{% endif %}">
+<span class="tag {% if v.quantidade_estoque == 0 %}urg"><span class="sym" aria-hidden="true">▲</span>URGENTE · Sem estoque{% else %}att"><span class="sym" aria-hidden="true">●</span>ATENÇÃO · Repor em breve{% endif %}</span>
+<div class="name">{{ v.produto.nome }}</div><div class="meta">{{ v.tamanho }} · {{ v.cor }} · Saldo: {{ v.quantidade_estoque }} · Mínimo: {{ v.estoque_minimo }}</div></div>
+{% empty %}<p>Nenhuma peça com estoque baixo.</p>{% endfor %}
+<a class="btn primary" style="justify-content:center" href="{% url 'nova_venda' %}">Nova venda</a>
+<a class="btn out" href="{% url 'menu' %}">Voltar ao menu</a>{% endblock %}

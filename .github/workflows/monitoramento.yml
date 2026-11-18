@@ -1,0 +1,35 @@
+name: Monitoramento
+
+# Verifica a cada 15 minutos se o MVP em produção está no ar e com o banco acessível.
+# Se a verificação falhar (status DOWN), o job fica vermelho e o GitHub avisa por e-mail
+# o dono do repositório. Defina a variável do repositório URL_PRODUCAO
+# (Settings > Secrets and variables > Actions > Variables), por exemplo https://sepala-estoque.onrender.com
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  disponibilidade:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar /saude/
+        env:
+          URL_PRODUCAO: ${{ vars.URL_PRODUCAO }}
+        run: |
+          if [ -z "$URL_PRODUCAO" ]; then
+            echo "::notice::Variável URL_PRODUCAO não definida; nada a verificar."
+            exit 0
+          fi
+          URL="${URL_PRODUCAO%/}/saude/"
+          INICIO=$(date +%s.%N)
+          if CORPO=$(curl -fsS --max-time 60 --retry 3 --retry-delay 10 "$URL") && echo "$CORPO" | grep -q '"status": "ok"'; then
+            TEMPO=$(awk -v a="$INICIO" -v b="$(date +%s.%N)" 'BEGIN { printf "%.2f", b - a }')
+            echo "UP: $URL respondeu ok em ${TEMPO}s"
+            echo "### ✅ UP — $URL (${TEMPO}s)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ❌ DOWN — $URL" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::MVP indisponível ou com banco fora do ar: $URL"
+            exit 1
+          fi

@@ -1,0 +1,23 @@
+# Modelo de implantação no Render (Blueprint). Valide na primeira publicação.
+services:
+  - type: web
+    name: sepala-estoque
+    runtime: python
+    plan: free            # confirmar limites do plano gratuito na contratação
+    buildCommand: pip install -r app/requirements.txt && python app/manage.py collectstatic --noinput && python app/manage.py migrate
+    startCommand: gunicorn --chdir app config.wsgi
+    healthCheckPath: /saude/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_FORCE_HTTPS
+        value: "1"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sepala-db
+          property: connectionString
+databases:
+  - name: sepala-db
+    plan: free            # confirmar prazo e limites do banco gratuito

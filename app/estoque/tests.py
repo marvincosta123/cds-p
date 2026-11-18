@@ -89,3 +89,71 @@ class RestricoesDoBancoTest(BaseTest):
     def test_estoque_baixo_quando_saldo_menor_ou_igual_ao_minimo(self):
         self.assertTrue(self.m_preta.estoque_baixo)
         self.assertFalse(self.g_azul.estoque_baixo)
+
+
+class TelasTest(BaseTest):
+    URLS_PROTEGIDAS = ['menu', 'nova_venda', 'resultado', 'consultar', 'cadastrar_produto']
+
+    def test_telas_internas_exigem_login(self):
+        for nome in self.URLS_PROTEGIDAS:
+            resposta = self.client.get(reverse(nome))
+            self.assertEqual(resposta.status_code, 302, nome)
+            self.assertIn(reverse('login'), resposta['Location'])
+
+    def test_login_valido_e_invalido(self):
+        ruim = self.client.post(reverse('login'), {'username': 'jaqueline', 'password': 'errada'})
+        self.assertContains(ruim, 'Usuário ou senha inválidos.')
+        self.assertNotContains(ruim, 'jaqueline não')
+        bom = self.client.post(reverse('login'), {'username': 'jaqueline', 'password': 'senha-de-teste-123'})
+        self.assertRedirects(bom, reverse('menu'))
+
+    def test_logout_encerra_a_sessao(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        self.client.post(reverse('logout'))
+        self.assertEqual(self.client.get(reverse('menu')).status_code, 302)
+
+    def test_servidor_recusa_venda_acima_do_saldo_mesmo_contornando_a_tela(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        resposta = self.client.post(reverse('nova_venda'), {
+            'variacao': self.m_preta.pk, 'quantidade': 2, 'canal': 'whatsapp', 'situacao_pagamento': 'pago'})
+        self.assertContains(resposta, 'Só há 1 unidade(s) em estoque. Informe 1 ou menos.')
+        self.m_preta.refresh_from_db()
+        self.assertEqual(self.m_preta.quantidade_estoque, 1)
+        self.assertEqual(Venda.objects.count(), 0)
+
+    def test_venda_valida_baixa_estoque_e_mostra_alerta(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        resposta = self.client.post(reverse('nova_venda'), {
+            'variacao': self.m_preta.pk, 'quantidade': 1, 'canal': 'whatsapp', 'situacao_pagamento': 'pago'}, follow=True)
+        self.assertContains(resposta, 'Venda registrada. Estoque atual: 0 unidades')
+        self.assertContains(resposta, 'URGENTE')
+
+    def test_texto_com_script_e_exibido_escapado(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        Produto.objects.create(nome='<script>alert(1)</script>', preco_venda=Decimal('10'))
+        p = Produto.objects.get(nome__startswith='<script>')
+        Variacao.objects.create(produto=p, tamanho='M', cor='Preta', quantidade_estoque=3)
+        resposta = self.client.get(reverse('consultar'), {'q': 'script'})
+        self.assertNotContains(resposta, '<script>alert(1)</script>')
+        self.assertContains(resposta, '&lt;script&gt;alert(1)&lt;/script&gt;')
+
+    def test_busca_com_aspas_e_sql_e_tratada_como_texto(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        resposta = self.client.get(reverse('consultar'), {'q': "' OR 1=1 --"})
+        self.assertEqual(resposta.status_code, 200)
+        self.assertContains(resposta, 'Nenhuma peça encontrada.')
+        self.assertEqual(Produto.objects.count(), 1)
+
+    def test_cadastro_de_produto_com_variacao_e_duplicidade(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        dados = {'nome': 'Blusa listrada', 'categoria': 'blusa', 'preco_venda': '59.90',
+                 'tamanho': 'p', 'cor': 'branca', 'quantidade_estoque': 4, 'estoque_minimo': 2}
+        self.assertRedirects(self.client.post(reverse('cadastrar_produto'), dados), reverse('menu'))
+        v = Variacao.objects.get(produto__nome='Blusa listrada')
+        self.assertEqual((v.tamanho, v.cor, v.quantidade_estoque), ('P', 'Branca', 4))
+        repetido = self.client.post(reverse('cadastrar_produto'), dados)
+        self.assertContains(repetido, 'já está cadastrado')
+
+    def test_rota_de_venda_nao_aceita_metodos_inesperados(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        self.assertEqual(self.client.delete(reverse('nova_venda')).status_code, 405)

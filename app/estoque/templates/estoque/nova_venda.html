@@ -1,7 +1,30 @@
 {% extends "estoque/base.html" %}{% block subtitle %}Nova venda{% endblock %}
 {% block content %}<a class="link" href="{% url 'menu' %}">← Voltar ao menu</a>
 <form method="post" novalidate>{% csrf_token %}
+{% for e in cabecalho.non_field_errors %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>{{ e }}</span></div>{% endfor %}
+{% for e in itens.non_form_errors %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>{{ e }}</span></div>{% endfor %}
+{{ itens.management_form }}
+{% for form in itens %}<fieldset class="card"><legend><strong>Peça {{ forloop.counter }}{% if forloop.first %} (obrigatória){% else %} (opcional){% endif %}</strong></legend>
 {% for campo in form %}<label for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+{% for e in campo.errors %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>{{ e }}</span></div>{% endfor %}{% endfor %}</fieldset>{% endfor %}
+{% for campo in cabecalho %}<label for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
 {% for e in campo.errors %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>{{ e }}</span></div>{% endfor %}{% endfor %}
-{% for e in form.non_field_errors %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>{{ e }}</span></div>{% endfor %}
-<button class="btn primary" style="justify-content:center;margin-top:16px" type="submit">Salvar venda</button></form>{% endblock %}
+<button class="btn primary" style="justify-content:center;margin-top:16px" type="submit">Salvar venda</button></form>
+<script>
+/* Busca por nome nos seletores de peça (melhora progressiva: sem JS, a lista completa continua disponível). */
+document.querySelectorAll('select[id$="-variacao"]').forEach(function (sel) {
+  var id = sel.id + '-busca';
+  var rotulo = document.createElement('label'); rotulo.htmlFor = id; rotulo.textContent = 'Buscar peça pelo nome';
+  var campo = document.createElement('input'); campo.type = 'search'; campo.id = id; campo.className = 'field'; campo.autocomplete = 'off';
+  sel.parentNode.insertBefore(rotulo, sel.previousElementSibling || sel); 
+  sel.parentNode.insertBefore(campo, sel.previousElementSibling || sel);
+  var todas = Array.prototype.slice.call(sel.options);
+  campo.addEventListener('input', function () {
+    var termo = campo.value.trim().toLowerCase();
+    var atual = sel.value;
+    sel.innerHTML = '';
+    todas.forEach(function (o) { if (!termo || !o.value || o.text.toLowerCase().indexOf(termo) !== -1) sel.appendChild(o); });
+    if (atual) sel.value = atual;
+  });
+});
+</script>{% endblock %}

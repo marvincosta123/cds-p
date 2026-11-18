@@ -91,6 +91,17 @@ class RestricoesDoBancoTest(BaseTest):
         self.assertFalse(self.g_azul.estoque_baixo)
 
 
+def dados_venda(*itens, canal='whatsapp', pagamento='pago', cliente=''):
+    """Monta o POST do formulário de venda com formset de itens: (variacao_id, quantidade)."""
+    d = {'v-canal': canal, 'v-situacao_pagamento': pagamento, 'v-nome_cliente': cliente,
+         'i-TOTAL_FORMS': str(len(itens) + 1), 'i-INITIAL_FORMS': '0',
+         'i-MIN_NUM_FORMS': '1', 'i-MAX_NUM_FORMS': '8'}
+    for n, (variacao_id, quantidade) in enumerate(itens):
+        d[f'i-{n}-variacao'] = variacao_id
+        d[f'i-{n}-quantidade'] = quantidade
+    return d
+
+
 class TelasTest(BaseTest):
     URLS_PROTEGIDAS = ['menu', 'nova_venda', 'resultado', 'consultar', 'cadastrar_produto']
 
@@ -114,8 +125,7 @@ class TelasTest(BaseTest):
 
     def test_servidor_recusa_venda_acima_do_saldo_mesmo_contornando_a_tela(self):
         self.client.login(username='jaqueline', password='senha-de-teste-123')
-        resposta = self.client.post(reverse('nova_venda'), {
-            'variacao': self.m_preta.pk, 'quantidade': 2, 'canal': 'whatsapp', 'situacao_pagamento': 'pago'})
+        resposta = self.client.post(reverse('nova_venda'), dados_venda((self.m_preta.pk, 2)))
         self.assertContains(resposta, 'Só há 1 unidade(s) em estoque. Informe 1 ou menos.')
         self.m_preta.refresh_from_db()
         self.assertEqual(self.m_preta.quantidade_estoque, 1)
@@ -123,8 +133,7 @@ class TelasTest(BaseTest):
 
     def test_venda_valida_baixa_estoque_e_mostra_alerta(self):
         self.client.login(username='jaqueline', password='senha-de-teste-123')
-        resposta = self.client.post(reverse('nova_venda'), {
-            'variacao': self.m_preta.pk, 'quantidade': 1, 'canal': 'whatsapp', 'situacao_pagamento': 'pago'}, follow=True)
+        resposta = self.client.post(reverse('nova_venda'), dados_venda((self.m_preta.pk, 1)), follow=True)
         self.assertContains(resposta, 'Venda registrada. Estoque atual: 0 unidades')
         self.assertContains(resposta, 'URGENTE')
 
@@ -157,3 +166,32 @@ class TelasTest(BaseTest):
     def test_rota_de_venda_nao_aceita_metodos_inesperados(self):
         self.client.login(username='jaqueline', password='senha-de-teste-123')
         self.assertEqual(self.client.delete(reverse('nova_venda')).status_code, 405)
+
+    def test_venda_com_varias_pecas_baixa_cada_uma(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        resposta = self.client.post(
+            reverse('nova_venda'), dados_venda((self.m_preta.pk, 1), (self.g_azul.pk, 2)), follow=True)
+        self.assertContains(resposta, 'Venda registrada com 2 peças.')
+        self.m_preta.refresh_from_db(); self.g_azul.refresh_from_db()
+        self.assertEqual((self.m_preta.quantidade_estoque, self.g_azul.quantidade_estoque), (0, 3))
+        self.assertEqual(Venda.objects.get().itens.count(), 2)
+
+    def test_venda_com_varias_pecas_e_uma_invalida_nao_grava_nada(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        resposta = self.client.post(reverse('nova_venda'), dados_venda((self.g_azul.pk, 1), (self.m_preta.pk, 9)))
+        self.assertContains(resposta, 'Só há 1 unidade(s) em estoque')
+        self.g_azul.refresh_from_db()
+        self.assertEqual(self.g_azul.quantidade_estoque, 5)
+        self.assertEqual(Venda.objects.count(), 0)
+
+    def test_tela_de_venda_tem_busca_e_varias_pecas(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        resposta = self.client.get(reverse('nova_venda'))
+        self.assertContains(resposta, 'Buscar peça pelo nome')
+        self.assertContains(resposta, 'Peça 3 (opcional)')
+
+    def test_venda_pendente_pela_tela_exige_cliente(self):
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        resposta = self.client.post(reverse('nova_venda'), dados_venda((self.g_azul.pk, 1), pagamento='pendente'))
+        self.assertContains(resposta, 'Informe o nome do cliente para venda pendente.')
+        self.assertEqual(Venda.objects.count(), 0)

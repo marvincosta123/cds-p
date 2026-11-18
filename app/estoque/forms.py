@@ -44,11 +44,20 @@ class ProdutoForm(forms.ModelForm):
 
 
 class VendaForm(forms.Form):
-    variacao = forms.ModelChoiceField(label='Peça (tamanho e cor)', queryset=Variacao.objects.none())
-    quantidade = forms.IntegerField(label='Quantidade', min_value=1)
+    """Dados gerais da venda (canal, pagamento e cliente)."""
     canal = forms.ChoiceField(label='Canal da venda', choices=Venda.Canal.choices)
     situacao_pagamento = forms.ChoiceField(label='Pagamento', choices=Venda.Pagamento.choices)
     nome_cliente = forms.CharField(label='Nome do cliente (obrigatório se pendente)', max_length=80, required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _estilo(self)
+
+
+class ItemVendaForm(forms.Form):
+    """Uma peça (tamanho e cor) e a quantidade vendida."""
+    variacao = forms.ModelChoiceField(label='Peça (tamanho e cor)', queryset=Variacao.objects.none())
+    quantidade = forms.IntegerField(label='Quantidade', min_value=1)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -57,3 +66,8 @@ class VendaForm(forms.Form):
         self.fields['variacao'].label_from_instance = (
             lambda v: f'{v.produto.nome} {v.tamanho} {v.cor} ({v.quantidade_estoque} un.)'
         )
+
+
+ItemVendaFormSet = forms.formset_factory(
+    ItemVendaForm, extra=2, min_num=1, validate_min=True, max_num=8, validate_max=True
+)

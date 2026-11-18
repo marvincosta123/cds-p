@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.db import transaction
 
-from .models import ItemVenda, Variacao, Venda
+from .models import ItemVenda, Produto, Variacao, Venda
 
 
 class RegraDeNegocioError(Exception):
@@ -66,3 +66,40 @@ def registrar_venda(*, usuario, itens, canal, situacao_pagamento, nome_cliente='
         variacao.quantidade_estoque -= quantidade
         variacao.save(update_fields=['quantidade_estoque'])
     return venda
+
+
+@transaction.atomic
+def repor_estoque(*, variacao_id, quantidade):
+    """Soma unidades ao saldo de uma variação (entrada de mercadoria)."""
+    if not isinstance(quantidade, int) or quantidade < 1:
+        raise RegraDeNegocioError('A quantidade a repor deve ser maior que zero.')
+    variacao = (
+        Variacao.objects.select_for_update()
+        .select_related('produto')
+        .filter(pk=variacao_id, produto__ativo=True)
+        .first()
+    )
+    if variacao is None:
+        raise RegraDeNegocioError('Peça não encontrada.')
+    variacao.quantidade_estoque += quantidade
+    variacao.save(update_fields=['quantidade_estoque'])
+    return variacao
+
+
+@transaction.atomic
+def criar_variacao(*, produto_id, tamanho, cor, quantidade_estoque, estoque_minimo):
+    """Acrescenta uma variação (tamanho e cor) a um produto já cadastrado."""
+    produto = Produto.objects.filter(pk=produto_id, ativo=True).first()
+    if produto is None:
+        raise RegraDeNegocioError('Produto não encontrado.')
+    tamanho, cor = (tamanho or '').strip().upper(), (cor or '').strip().capitalize()
+    if not tamanho or not cor:
+        raise RegraDeNegocioError('Informe tamanho e cor.')
+    if quantidade_estoque < 0 or estoque_minimo < 0:
+        raise RegraDeNegocioError('Quantidades não podem ser negativas.')
+    if Variacao.objects.filter(produto=produto, tamanho=tamanho, cor__iexact=cor).exists():
+        raise RegraDeNegocioError('Esta combinação de tamanho e cor já existe para o produto. Use "Repor estoque".')
+    return Variacao.objects.create(
+        produto=produto, tamanho=tamanho, cor=cor,
+        quantidade_estoque=quantidade_estoque, estoque_minimo=estoque_minimo,
+    )

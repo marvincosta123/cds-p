@@ -1,0 +1,7 @@
+{% extends "estoque/base.html" %}{% block subtitle %}Repor estoque{% endblock %}
+{% block content %}<a class="link" href="{% url 'menu' %}">← Voltar ao menu</a>
+<form method="post" novalidate>{% csrf_token %}
+{% for e in form.non_field_errors %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>{{ e }}</span></div>{% endfor %}
+{% for campo in form %}<label for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+{% for e in campo.errors %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>{{ e }}</span></div>{% endfor %}{% endfor %}
+<button class="btn primary" style="justify-content:center;margin-top:16px" type="submit">Salvar entrada</button></form>{% endblock %}

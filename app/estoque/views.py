@@ -9,9 +9,9 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from .forms import ItemVendaFormSet, ProdutoForm, VendaForm
+from .forms import ItemVendaFormSet, NovaVariacaoForm, ProdutoForm, ReposicaoForm, VendaForm
 from .models import ItemVenda, Produto, Variacao, Venda
-from .services import RegraDeNegocioError, registrar_venda
+from .services import RegraDeNegocioError, criar_variacao, registrar_venda, repor_estoque
 
 
 def _estoque_baixo():
@@ -120,3 +120,35 @@ def relatorio(request):
         'mais_vendidas': mais_vendidas, 'pendentes': pendentes,
         'total_pendente': pendentes.aggregate(t=Sum('valor_total'))['t'] or 0,
     })
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def repor(request):
+    """Entrada de mercadoria: soma unidades ao saldo de uma variação."""
+    form = ReposicaoForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            variacao = repor_estoque(variacao_id=form.cleaned_data['variacao'].pk, quantidade=form.cleaned_data['quantidade'])
+        except RegraDeNegocioError as erro:
+            form.add_error(None, str(erro))
+        else:
+            messages.success(request, f'Estoque atualizado. {variacao.produto.nome} {variacao.tamanho} {variacao.cor}: {variacao.quantidade_estoque} unidades')
+            return redirect('repor')
+    return render(request, 'estoque/repor.html', {'form': form})
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def nova_variacao(request):
+    """Acrescenta tamanho e cor a um produto já cadastrado."""
+    form = NovaVariacaoForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            variacao = criar_variacao(produto_id=form.cleaned_data['produto'].pk, **{k: form.cleaned_data[k] for k in ('tamanho', 'cor', 'quantidade_estoque', 'estoque_minimo')})
+        except RegraDeNegocioError as erro:
+            form.add_error(None, str(erro))
+        else:
+            messages.success(request, f'Variação cadastrada: {variacao.produto.nome} {variacao.tamanho} {variacao.cor}.')
+            return redirect('nova_variacao')
+    return render(request, 'estoque/nova_variacao.html', {'form': form})

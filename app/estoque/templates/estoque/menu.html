@@ -4,6 +4,8 @@
 <a class="btn" href="{% url 'consultar' %}">Consultar peça</a>
 <a class="btn" href="{% url 'resultado' %}">Estoque baixo<span class="badge">{{ total_alertas }} peça{{ total_alertas|pluralize }}</span></a>
 <a class="btn" href="{% url 'relatorio' %}">Relatório mensal</a>
+<a class="btn" href="{% url 'repor' %}">Repor estoque</a>
 <a class="btn" href="{% url 'cadastrar_produto' %}">Cadastrar produto</a>
+<a class="btn" href="{% url 'nova_variacao' %}">Nova variação (tamanho e cor)</a>
 <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn out" type="submit">Sair</button></form>
 <p class="help">Por segurança, a sessão encerra após 30 minutos sem uso.</p>{% endblock %}

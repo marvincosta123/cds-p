@@ -71,3 +71,29 @@ class ItemVendaForm(forms.Form):
 ItemVendaFormSet = forms.formset_factory(
     ItemVendaForm, extra=2, min_num=1, validate_min=True, max_num=8, validate_max=True
 )
+
+
+class ReposicaoForm(forms.Form):
+    variacao = forms.ModelChoiceField(label='Peça (tamanho e cor)', queryset=Variacao.objects.none())
+    quantidade = forms.IntegerField(label='Unidades que chegaram', min_value=1)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _estilo(self)
+        self.fields['variacao'].queryset = Variacao.objects.filter(produto__ativo=True).select_related('produto')
+        self.fields['variacao'].label_from_instance = (
+            lambda v: f'{v.produto.nome} {v.tamanho} {v.cor} (saldo: {v.quantidade_estoque})'
+        )
+
+
+class NovaVariacaoForm(forms.Form):
+    produto = forms.ModelChoiceField(label='Produto', queryset=Produto.objects.none())
+    tamanho = forms.CharField(label='Tamanho', max_length=10)
+    cor = forms.CharField(label='Cor', max_length=40)
+    quantidade_estoque = forms.IntegerField(label='Quantidade em estoque', min_value=0)
+    estoque_minimo = forms.IntegerField(label='Estoque mínimo', min_value=0, initial=1)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        _estilo(self)
+        self.fields['produto'].queryset = Produto.objects.filter(ativo=True)

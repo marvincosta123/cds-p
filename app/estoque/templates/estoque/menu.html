@@ -1,0 +1,8 @@
+{% extends "estoque/base.html" %}{% block content %}
+<h1>Olá, {{ user.first_name|default:user.username }}</h1>
+<a class="btn primary" href="{% url 'nova_venda' %}">Nova venda</a>
+<a class="btn" href="{% url 'consultar' %}">Consultar peça</a>
+<a class="btn" href="{% url 'resultado' %}">Estoque baixo<span class="badge">{{ total_alertas }} peça{{ total_alertas|pluralize }}</span></a>
+<a class="btn" href="{% url 'cadastrar_produto' %}">Cadastrar produto</a>
+<form method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn out" type="submit">Sair</button></form>
+<p class="help">Por segurança, a sessão encerra após 30 minutos sem uso.</p>{% endblock %}

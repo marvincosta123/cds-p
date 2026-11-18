@@ -233,3 +233,38 @@ class BloqueioDeLoginTest(BaseTest):
             self.entrar('jaqueline', 'errada')
         self.assertRedirects(self.entrar('outra', 'outra-senha-123'), reverse('menu'))
 
+
+class RelatorioMensalTest(BaseTest):
+    def setUp(self):
+        super().setUp()
+        self.client.login(username='jaqueline', password='senha-de-teste-123')
+        self.vender([{'variacao_id': self.g_azul.pk, 'quantidade': 2}])
+        self.vender([{'variacao_id': self.g_azul.pk, 'quantidade': 1}], situacao_pagamento='pendente', nome_cliente='Cliente Teste')
+
+    def test_requer_login(self):
+        self.client.logout()
+        self.assertEqual(self.client.get(reverse('relatorio')).status_code, 302)
+
+    def test_totais_ranking_e_pendentes_do_mes_atual(self):
+        resposta = self.client.get(reverse('relatorio'))
+        self.assertContains(resposta, 'R$ 269,70')           # 3 x 89,90
+        self.assertContains(resposta, '2 vendas')
+        self.assertContains(resposta, 'Vestido floral')
+        self.assertContains(resposta, '3 un.')
+        self.assertContains(resposta, 'Cliente Teste')
+        self.assertContains(resposta, 'Total pendente: R$ 89,90')
+
+    def test_mes_sem_vendas_mostra_vazio(self):
+        resposta = self.client.get(reverse('relatorio'), {'mes': '2020-01'})
+        self.assertContains(resposta, 'Nenhuma venda neste mês.')
+        self.assertContains(resposta, 'R$ 0,00')
+
+    def test_mes_invalido_volta_ao_mes_atual_com_aviso(self):
+        for ruim in ('2026-13', "'; DROP TABLE--", 'abc'):
+            resposta = self.client.get(reverse('relatorio'), {'mes': ruim})
+            self.assertEqual(resposta.status_code, 200)
+            self.assertContains(resposta, 'Mês inválido')
+        self.assertEqual(Venda.objects.count(), 2)
+
+    def test_menu_tem_link_para_o_relatorio(self):
+        self.assertContains(self.client.get(reverse('menu')), 'Relatório mensal')

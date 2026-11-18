@@ -1,12 +1,16 @@
+import re
+from datetime import datetime
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import F, Q, Sum
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from .forms import ItemVendaFormSet, ProdutoForm, VendaForm
-from .models import Produto, Variacao
+from .models import ItemVenda, Produto, Variacao, Venda
 from .services import RegraDeNegocioError, registrar_venda
 
 
@@ -80,3 +84,39 @@ def cadastrar_produto(request):
         messages.success(request, 'Produto cadastrado.')
         return redirect('menu')
     return render(request, 'estoque/cadastrar_produto.html', {'form': form})
+
+
+def _limites_do_mes(texto):
+    """Converte 'AAAA-MM' no intervalo [início, fim) do mês, no fuso configurado."""
+    if texto and re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', texto):
+        ano, mes = int(texto[:4]), int(texto[5:])
+    else:
+        hoje = timezone.localdate()
+        ano, mes = hoje.year, hoje.month
+    fuso = timezone.get_current_timezone()
+    inicio = datetime(ano, mes, 1, tzinfo=fuso)
+    fim = datetime(ano + (mes == 12), 1 if mes == 12 else mes + 1, 1, tzinfo=fuso)
+    return ano, mes, inicio, fim
+
+
+@login_required
+def relatorio(request):
+    """Relatório mensal: total vendido, peças mais vendidas e vendas pendentes (RF07)."""
+    bruto = request.GET.get('mes', '')
+    ano, mes, inicio, fim = _limites_do_mes(bruto)
+    vendas = Venda.objects.filter(data_hora__gte=inicio, data_hora__lt=fim)
+    total = vendas.aggregate(t=Sum('valor_total'))['t'] or 0
+    mais_vendidas = (
+        ItemVenda.objects.filter(venda__in=vendas)
+        .values('variacao__produto__nome', 'variacao__tamanho', 'variacao__cor')
+        .annotate(unidades=Sum('quantidade'))
+        .order_by('-unidades', 'variacao__produto__nome')[:5]
+    )
+    pendentes = vendas.filter(situacao_pagamento=Venda.Pagamento.PENDENTE).order_by('data_hora')
+    return render(request, 'estoque/relatorio.html', {
+        'mes_valor': f'{ano:04d}-{mes:02d}', 'mes_texto': f'{mes:02d}/{ano}',
+        'mes_invalido': bool(bruto) and bruto != f'{ano:04d}-{mes:02d}',
+        'quantidade_vendas': vendas.count(), 'total': total,
+        'mais_vendidas': mais_vendidas, 'pendentes': pendentes,
+        'total_pendente': pendentes.aggregate(t=Sum('valor_total'))['t'] or 0,
+    })

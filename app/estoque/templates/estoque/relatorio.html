@@ -1,0 +1,14 @@
+{% extends "estoque/base.html" %}{% block subtitle %}Relatório mensal{% endblock %}
+{% block content %}<a class="link" href="{% url 'menu' %}">← Voltar ao menu</a>
+<form method="get"><label for="mes">Mês</label><input class="field" type="month" id="mes" name="mes" value="{{ mes_valor }}">
+<button class="btn primary" style="justify-content:center;margin-top:12px" type="submit">Ver relatório</button></form>
+{% if mes_invalido %}<div class="msg err" role="alert"><span class="sym" aria-hidden="true">▲</span><span>Mês inválido. Mostrando o mês atual.</span></div>{% endif %}
+<h1 style="margin-top:20px">{{ mes_texto }}</h1>
+<div class="card"><div class="meta">Total vendido</div><div class="name">R$ {{ total|floatformat:2 }}</div><div class="meta">{{ quantidade_vendas }} venda{{ quantidade_vendas|pluralize }}</div></div>
+<h2 style="font-size:18px">Peças mais vendidas</h2>
+{% for i in mais_vendidas %}<div class="card"><div class="name">{{ i.variacao__produto__nome }}</div><div class="meta">{{ i.variacao__tamanho }} · {{ i.variacao__cor }} · {{ i.unidades }} un.</div></div>
+{% empty %}<p>Nenhuma venda neste mês.</p>{% endfor %}
+<h2 style="font-size:18px">Vendas pendentes de pagamento</h2>
+{% for v in pendentes %}<div class="card att"><span class="tag att"><span class="sym" aria-hidden="true">●</span>PENDENTE</span><div class="name">{{ v.nome_cliente }}</div><div class="meta">R$ {{ v.valor_total|floatformat:2 }} · {{ v.data_hora|date:"d/m/Y" }}</div></div>
+{% empty %}<p>Nenhuma venda pendente.</p>{% endfor %}
+{% if pendentes %}<p class="help">Total pendente: R$ {{ total_pendente|floatformat:2 }}</p>{% endif %}{% endblock %}

@@ -22,7 +22,7 @@ Obrigatório:
 
 Desejável:
 - RF06 Alerta de estoque baixo
-- RF07 Relatório mensal
+- RF07 Relatório mensal (total vendido, peças mais vendidas e vendas pendentes)
 
 Fora do escopo: integração com WhatsApp/Instagram, pagamentos online,
 nota fiscal, loja virtual e aplicativo nativo.
@@ -65,8 +65,9 @@ Variáveis de ambiente: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`,
 cd app && python manage.py test estoque
 ```
 Cobrem baixa de estoque, recusa sem saldo, atomicidade, login
-obrigatório, escape de scripts e consultas seguras.
+obrigatório, bloqueio por tentativas, relatório mensal, escape de
+scripts e consultas seguras.
 
 ## Status
-Núcleo do MVP implementado (RF01 a RF06). Pendentes: relatório mensal
-(RF07), PWA e implantação.
+Implementados: RF01 a RF07 e bloqueio de login por 15 minutos após 5
+falhas seguidas (RNF01). Pendentes: PWA e implantação em hospedagem.

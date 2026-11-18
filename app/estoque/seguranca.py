@@ -50,6 +50,13 @@ class LoginComBloqueioForm(AuthenticationForm):
         'inactive': 'Usuário ou senha inválidos.',
     }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for campo in self.fields.values():
+            campo.widget.attrs['class'] = 'field'
+        self.fields['username'].widget.attrs.update({'autocomplete': 'username', 'autocapitalize': 'none'})
+        self.fields['password'].widget.attrs['autocomplete'] = 'current-password'
+
     def clean(self):
         username = self.data.get(self.add_prefix('username'), '')
         if esta_bloqueado(username):

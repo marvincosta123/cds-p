@@ -345,3 +345,12 @@ class ConfiguracaoDeProducaoTest(TestCase):
         cfg = _banco_por_url('postgres://usu%40:s%23nha@banco.exemplo.com:5432/sepala')
         self.assertEqual((cfg['USER'], cfg['PASSWORD'], cfg['HOST'], cfg['PORT'], cfg['NAME']),
                          ('usu@', 's#nha', 'banco.exemplo.com', '5432', 'sepala'))
+
+
+class LoginAcessivelTest(TestCase):
+    def test_campos_do_login_tem_estilo_de_area_de_toque_e_autocomplete(self):
+        resposta = self.client.get(reverse('login'))
+        self.assertContains(resposta, 'class="field"', count=2)
+        self.assertContains(resposta, 'autocomplete="current-password"')
+        self.assertContains(resposta, 'for="id_username"')
+        self.assertContains(resposta, 'for="id_password"')

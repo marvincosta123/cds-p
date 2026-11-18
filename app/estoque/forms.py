@@ -55,5 +55,5 @@ class VendaForm(forms.Form):
         _estilo(self)
         self.fields['variacao'].queryset = Variacao.objects.filter(produto__ativo=True).select_related('produto')
         self.fields['variacao'].label_from_instance = (
-            lambda v: f'{v.produto.nome} – {v.tamanho} – {v.cor} (saldo: {v.quantidade_estoque} un.)'
+            lambda v: f'{v.produto.nome} {v.tamanho} {v.cor} ({v.quantidade_estoque} un.)'
         )

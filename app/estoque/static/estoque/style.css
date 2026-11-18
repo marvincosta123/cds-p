@@ -37,3 +37,6 @@ select.field,input.field{width:100%}
 .link{color:var(--green);font-weight:700;display:inline-block;min-height:44px;line-height:44px}
 .btn{text-decoration:none}
 form .btn{cursor:pointer}
+
+:focus-visible{outline:4px solid #0b57d0;outline-offset:2px}
+.sym{font-weight:700;margin-right:6px}

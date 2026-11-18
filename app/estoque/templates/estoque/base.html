@@ -2,4 +2,4 @@
 <html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}Sépala{% endblock %}</title><link rel="stylesheet" href="{% static 'estoque/style.css' %}"></head>
 <body><header><div class="brand">Sépala</div><div class="sub">{% block subtitle %}Controle de pedidos e estoque{% endblock %}</div></header>
-<main>{% for m in messages %}<div class="msg ok" role="status">{{ m }}</div>{% endfor %}{% block content %}{% endblock %}</main></body></html>
+<main>{% for m in messages %}<div class="msg ok" role="status"><span class="sym" aria-hidden="true">✓</span><span>{{ m }}</span></div>{% endfor %}{% block content %}{% endblock %}</main></body></html>
